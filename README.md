@@ -9,14 +9,14 @@
 - [Overview](#overview)
 - [Network Topology](#network-topology)
 - [Attack Chain Summary](#attack-chain-summary)
-- [Phase 1: Passive Reconnaissance](#phase-1--passive-reconnaissance)
-- [Phase 2: Network Discovery and pfSense](#phase-2--network-discovery-and-pfsense)
-- [Phase 3: Target Scanning and Enumeration](#phase-3--target-scanning-and-enumeration)
-- [Phase 4: Vulnerability Assessment](#phase-4--vulnerability-assessment)
-- [Phase 5: Gaining Access](#phase-5--gaining-access)
-- [Phase 6: Privilege Escalation](#phase-6--privilege-escalation)
-- [Phase 7: Post-Exploitation](#phase-7--post-exploitation)
-- [Phase 8: Tracks Covering](#phase-8--tracks-covering)
+- [Phase 1: Passive Reconnaissance](#phase-1-passive-reconnaissance)
+- [Phase 2: Network Discovery and pfSense](#phase-2-network-discovery-and-pfsense)
+- [Phase 3: Target Scanning and Enumeration](#phase-3-target-scanning-and-enumeration)
+- [Phase 4: Vulnerability Assessment](#phase-4-vulnerability-assessment)
+- [Phase 5: Gaining Access](#phase-5-gaining-access)
+- [Phase 6: Privilege Escalation](#phase-6-privilege-escalation)
+- [Phase 7: Post-Exploitation](#phase-7-post-exploitation)
+- [Phase 8: Tracks Covering](#phase-8-tracks-covering)
 - [Vulnerabilities Exploited](#vulnerabilities-exploited)
 - [Tools Used](#tools-used)
 - [Recommendations](#recommendations)
@@ -270,7 +270,7 @@ A custom Metasploit RPC Python script (`thor_full_chain.py`) was also developed 
 
 
 
-## Phase 8 — Tracks Covering
+## Phase 8: Tracks Covering
 
 The final phase involved removing evidence of the intrusion from both the target system and the Kali attacker machine. On the target, the Apache access log was the most critical file to clear, as it contained the raw Shellshock HTTP request that triggered the initial exploit. The auth log was cleared, as it stored every sudo command used during the escalation phase. The syslog, the binary login records (`wtmp`, `btmp`, `lastlog`), and the bash history for both `root` and `www-data` were all overwritten and verified empty.
 
