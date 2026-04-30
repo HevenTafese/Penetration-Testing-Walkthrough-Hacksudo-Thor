@@ -1,7 +1,6 @@
 """
 Target:  pfSense login page
 Author: Heven Tafese
-Email: s4430184@lsbu.ac.uk
 """
 import requests
 from bs4 import BeautifulSoup
