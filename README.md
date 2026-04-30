@@ -286,9 +286,9 @@ One deliberate exception was made to the SSH backdoor, and its associated key fi
 |--------------|-----|------|-----------|--------|
 | Shellshock RCE | CVE-2014-6271 | 9.8 | Apache mod\_cgi + unpatched Bash | Metasploit with malicious User-Agent header |
 | Default credentials | — | — | pfSense webConfigurator | `admin / pfsense` unchanged post-install |
-| Sudo misconfiguration (www-data) | — | — | `/etc/sudoers` | NOPASSWD — `hammer.sh` executable as thor |
+| Sudo misconfiguration (www-data) | — | — | `/etc/sudoers` | NOPASSWD `hammer.sh` executable as thor |
 | Command injection in hammer.sh | — | — | Custom bash script | `eval` injection via `bash -i` payload |
-| Sudo misconfiguration (thor) | — | — | `/etc/sudoers` | NOPASSWD — unrestricted `service` as root |
+| Sudo misconfiguration (thor) | — | — | `/etc/sudoers` | NOPASSWD unrestricted `service` as root |
 
 ---
 
