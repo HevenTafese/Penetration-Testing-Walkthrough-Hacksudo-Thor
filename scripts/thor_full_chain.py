@@ -3,7 +3,6 @@
 thor_full_chain.py -- Full Attack Chain Automation Script
 Target: HacksudoThor
 Author: Heven Tafese
-Email: s4430184@lsbu.ac.uk
 Description: This script connects to an existing Metasploit RPC session
 and automates the full attack chain, including privilege escalation,
 post-exploitation, and the deployment of a persistent backdoor.
