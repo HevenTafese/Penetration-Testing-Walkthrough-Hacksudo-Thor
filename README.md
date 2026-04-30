@@ -1,6 +1,6 @@
 # HackSudo Thor Full Penetration Testing Walkthrough
 
-> **Target:** [HackSudo Thor](https://www.vulnhub.com/entry/hacksudo-thor,733/) — VulnHub  
+> **Target:** [HackSudo Thor](https://www.vulnhub.com/entry/hacksudo-thor,733/) from VulnHub  
 > **Objective:** Gain root access and read `/root/proof.txt`  
 > **Environment:** Isolated VirtualBox lab segmented by a pfSense firewall  
 
@@ -28,14 +28,14 @@
 
 This repository documents a partial black-box penetration test conducted on **HackSudo Thor**, an intentionally vulnerable virtual machine published on VulnHub by Vishal Waghmare. The goal was to simulate a real-world attack where an outside attacker attempts to compromise an isolated internal system  with the primary objective being to gain root access and read the contents of `/root/proof.txt`.
 
-The assessment follows the full penetration testing lifecycle: passive reconnaissance, network discovery, enumeration, vulnerability assessment, exploitation, privilege escalation, post-exploitation, and track covering. A dedicated attacker account (`heven84`) was created on the Kali Linux machine before testing began, and all commands were executed under this account unless root privileges were specifically required.
+The assessment follows the full penetration testing lifecycle: passive reconnaissance, network discovery, enumeration, vulnerability assessment, exploitation, privilege escalation, post-exploitation, and track covering. 
 
-The primary tools used were Nmap for network scanning, Nessus for vulnerability assessment, and the Metasploit Framework as the main exploitation and post-exploitation platform. John the Ripper, Hashcat, and online Rainbow Tables were used during the password cracking stage — though all attempts were ultimately unsuccessful due to the strength of the hashing algorithm in use.
+The primary tools used were Nmap for network scanning, Nessus for vulnerability assessment, and the Metasploit Framework as the main exploitation and post-exploitation platform. John the Ripper, Hashcat, and online Rainbow Tables were used during the password cracking stage, though all attempts were ultimately unsuccessful due to the strength of the hashing algorithm in use.
 
 
 ## Network Topology
 
-The virtual lab was built entirely in VirtualBox and designed to simulate a realistic enterprise network with three distinct security zones, all managed by a pfSense 2.7.2 firewall. The three NAT networks were configured as follows — a WAN zone simulating the public internet where the Kali attacker machine lives, a DMZ zone hosting the target machine, and an internal LAN zone containing out-of-scope machines.
+The virtual lab was built entirely in VirtualBox and designed to simulate a realistic enterprise network with three distinct security zones, all managed by a pfSense 2.7.2 firewall. The three NAT networks were configured as follows: a WAN zone simulating the public internet where the Kali attacker machine lives, a DMZ zone hosting the target machine, and an internal LAN zone containing out-of-scope machines.
 
 ```
 Internet Zone — NatNetwork (10.0.2.0/24)
@@ -57,7 +57,7 @@ Internet Zone — NatNetwork (10.0.2.0/24)
 ![Logical network topology diagram](screenshots/network.PNG)
 *Logical network topology security zones managed by pfSense*
 
-The WAN interface was assigned `10.0.2.8/24` by DHCP, the LAN interface was set to `10.0.3.1/24`, and the OPT1 (DMZ) interface was set to `10.0.4.1/24`. To introduce a deliberate misconfiguration into the lab, port 80 was intentionally left exposed on the pfSense WAN interface — simulating a common real-world admin panel exposure that served as the primary entry point into the internal network.
+The WAN interface was assigned `10.0.2.8/24` by DHCP, the LAN interface was set to `10.0.3.1/24`, and the OPT1 (DMZ) interface was set to `10.0.4.1/24`. To introduce a deliberate misconfiguration into the lab, port 80 was intentionally left exposed on the pfSense WAN interface, simulating a common real-world admin panel exposure that served as the primary entry point into the internal network.
 
 ---
 
@@ -98,9 +98,9 @@ The WAN interface was assigned `10.0.2.8/24` by DHCP, the LAN interface was set 
 
 Before making any contact with the target environment, information was gathered exclusively from public sources. The two primary sources were the official VulnHub entry page for HackSudo Thor and the author's public GitHub profile.
 
-The VulnHub page confirmed the target was a Linux-based system, rated easy to medium difficulty, with the objective of finding the `proof.txt` flag. Reviewing the author's GitHub profile gave additional intelligence — Vishal Waghmare consistently designs Linux boot-to-root machines with privilege escalation as the core challenge across the entire HackSudo series. This shaped the threat model going into the active phases: HTTP and SSH services were the most likely attack surface, and the escalation path was predicted to involve sudo misconfiguration, SUID binary abuse, or exploitation of a custom service.
+The VulnHub page confirmed the target was a Linux-based system, rated easy to medium difficulty, with the objective of finding the `proof.txt` flag. Reviewing the author's GitHub profile gave additional insight. Vishal Waghmare consistently designs Linux boot-to-root machines with privilege escalation as the core challenge across the entire HackSudo series. This shaped the threat model going into the active phases: HTTP and SSH services were the most likely attack surface, and the escalation path was predicted to involve sudo misconfiguration, SUID binary abuse, or exploitation of a custom service.
 
-This kind of author-pattern analysis matters in a real engagement too. Understanding how a system was likely designed and what categories of weakness its administrator is likely to repeat gives direction before a single packet is sent.
+This kind of author pattern analysis matters in a real engagement too. Understanding how a system was likely designed and what categories of weakness its administrator is likely to repeat gives direction before a single packet is sent.
 
 | Field | Detail |
 |-------|--------|
@@ -110,8 +110,8 @@ This kind of author-pattern analysis matters in a real engagement too. Understan
 | Difficulty | Easy to Medium |
 | OS | Linux (Debian) |
 | Format | VirtualBox OVA |
-| DHCP | Enabled — IP assigned automatically |
-| Predicted Attack Surface | HTTP, SSH — sudo misconfiguration likely |
+| DHCP | Enabled |
+| Predicted Attack Surface | HTTP, SSH, sudo misconfiguration likely |
 
 ---
 
@@ -121,19 +121,19 @@ This phase involved making direct active contact with the environment. The objec
 
 ### Finding the Boundary Device
 
-A lightweight Nmap ping sweep (`-sn`) was first run against the WAN subnet (`10.0.2.0/24`) to discover live hosts with minimal noise. Three hosts were identified — `10.0.2.1` and `10.0.2.2` were standard VirtualBox infrastructure addresses, which left `10.0.2.8` as the only non-infrastructure host. That machine became the immediate focus.
+A lightweight Nmap ping sweep (`-sn`) was first run against the WAN subnet (`10.0.2.0/24`) to discover live hosts with minimal noise. Three hosts were identified:  `10.0.2.1` and `10.0.2.2` were standard VirtualBox infrastructure addresses, which left `10.0.2.8` as the only non-infrastructure host. That machine became the immediate focus.
 
-A full SYN stealth scan against `10.0.2.8` returned no results at all. This was expected behaviour rather than an error — enterprise firewalls are designed to be unresponsive to port scanning, silently dropping packets rather than replying. The absence of results was itself confirmation that this was a network boundary device actively filtering traffic.
+A full SYN stealth scan against `10.0.2.8` returned no results at all. This was expected behaviour rather than an error. Enterprise firewalls are designed to be unresponsive to port scanning, silently dropping packets rather than replying. The absence of results was itself confirmation that this was a network boundary device actively filtering traffic.
 
-To confirm what services were actually running without relying on packet scanning, a direct HTTP request was issued using curl. This approach was taken because a standard web request is far less likely to be filtered than a scanning tool. The response came back as `HTTP/1.1 200 OK` with `Server: nginx` and a page title of `pfSense`  confirming that the webConfigurator was directly accessible on port 80 from the WAN interface.
+To confirm what services were actually running without relying on packet scanning, a direct HTTP request was issued using curl. This approach was taken because a standard web request is far less likely to be filtered than a scanning tool. The response came back as `HTTP/1.1 200 OK` with `Server: nginx` and a page title of `pfSense`,  confirming that the webConfigurator was directly accessible on port 80 from the WAN interface.
 
 ### Bypassing CSRF to Brute Force pfSense
 
 With the login page confirmed, the next step was attempting to recover credentials. Hydra was initially selected as the brute force tool, but this attempt failed for two reasons. The first was a practical `rockyou.txt` that contains over 14 million entries, making it impractical within the timeframe of this assessment. The second was technical and more significant: pfSense 2.7.2 implements CSRF token protection, generating a unique cryptographic token on every page load that must be submitted alongside the credentials. Hydra's HTTP POST module submits a static request body and has no mechanism to dynamically fetch a fresh token per attempt, so every submission was rejected before the password was even checked.
 
-To work around this, a custom Python script was written to replicate the full browser login process. For each password attempt, the script opens a new session, loads the login page, extracts the current CSRF token from the HTML form, and then submits the credentials alongside that token — exactly as a browser would. A custom wordlist was built using CeWL to crawl the pfSense login page and extract relevant terms, then supplemented with `fasttrack.txt` to cover known default credentials.
+To work around this, a custom Python script was written to replicate the full browser login process. For each password attempt, the script opens a new session, loads the login page, extracts the current CSRF token from the HTML form, and then submits the credentials alongside that token exactly as a browser would. A custom wordlist was built using CeWL to crawl the pfSense login page and extract relevant terms, then supplemented with `fasttrack.txt` to cover known default credentials.
 
-The script recovered the credentials: **`admin / pfsense`** — the unchanged default.
+The script recovered the credentials: **`admin / pfsense`**,  the unchanged default.
 
 ![pfSense brute force output showing credentials recovered](screenshots/Discovery/pfsenselogin.png)
 *Custom Python script recovering pfSense credentials*
@@ -168,9 +168,9 @@ Each service was then enumerated further using targeted Metasploit auxiliary mod
 
 ## Phase 4: Vulnerability Assessment
 
-With the attack surface fully mapped, a structured vulnerability assessment was performed using two approaches — an automated Nessus scan and manual attacker reasoning applied to each service.
+With the attack surface fully mapped, a structured vulnerability assessment was performed using two approaches: an automated Nessus scan and manual attacker reasoning applied to each service.
 
-A custom Nessus policy was created with CGI scanning and web application testing explicitly enabled, targeting ports 21, 22, and 80. These settings are not enabled by default and were critical here — without them, the CGI endpoint would not have been tested. The scan ran for approximately 11 minutes and returned 41 total findings. The actionable findings were:
+A custom Nessus policy was created with CGI scanning and web application testing explicitly enabled, targeting ports 21, 22, and 80. These settings are not enabled by default and were critical here; without them, the CGI endpoint would not have been tested. The scan ran for approximately 11 minutes and returned 41 total findings. The actionable findings were:
 
 | Severity | Finding | CVE | CVSS v3 |
 |----------|---------|-----|---------|
@@ -183,42 +183,42 @@ A custom Nessus policy was created with CGI scanning and web application testing
 
 The two Shellshock findings on `/cgi-bin/shell.sh` were immediately the priority. CVE-2014-6271 carries a CVSS score of 9.8 and enables unauthenticated remote code execution, the highest impact finding in the scan. CVE-2014-6278 represents an incomplete patch of the same vulnerability, meaning even partially patched systems remain exploitable. The SSH Terrapin weakness was assessed as non-exploitable without a man-in-the-middle position. The remaining findings had no meaningful exploitation value in this engagement.
 
-Before moving to exploitation, the Shellshock finding was independently verified using Nmap's `http-shellshock` NSE script targeted directly at `/cgi-bin/shell.sh`. Independent verification before exploitation is an important step in the methodology — it confirms the vulnerability is real and not a false positive from the scanner, and it avoids wasting time attempting an exploit that will not work. The NSE script confirmed the endpoint was vulnerable, and CVE-2014-6271 was selected as the primary attack vector.
+Before moving to exploitation, the Shellshock finding was independently verified using Nmap's `http-shellshock` NSE script targeted directly at `/cgi-bin/shell.sh`. Independent verification before exploitation is an important step in the methodology, as it confirms the vulnerability is real and not a false positive from the scanner, and it avoids wasting time attempting an exploit that will not work. The NSE script confirmed the endpoint was vulnerable, and CVE-2014-6271 was selected as the primary attack vector.
 
 
 ## Phase 5: Gaining Access
 
 With Shellshock confirmed, the exploitation phase began. The vulnerability exists because Apache mod\_cgi passes HTTP request headers as environment variables to Bash when a CGI script is invoked. In an unpatched version of Bash, a specially crafted function definition in an environment variable causes any commands appended after the definition to execute immediately. By injecting this payload into the `User-Agent` header of a request to `/cgi-bin/shell.sh`, arbitrary commands could be executed on the server without any authentication.
 
-The Metasploit module `exploit/multi/http/apache_mod_cgi_bash_env_exec` automates this entirely. The module was configured with `RHOSTS` set to `10.0.4.3`, `TARGETURI` set to `/cgi-bin/shell.sh`, the payload set to `linux/x86/meterpreter/reverse_tcp`, and the listener pointed back at the Kali machine on port 4444. Running the module sent the malicious request, the server executed the payload, and Metasploit received the incoming connection — establishing a Meterpreter session as `www-data`.
+The Metasploit module `exploit/multi/http/apache_mod_cgi_bash_env_exec` automates this entirely. The module was configured with `RHOSTS` set to `10.0.4.3`, `TARGETURI` set to `/cgi-bin/shell.sh`, the payload set to `linux/x86/meterpreter/reverse_tcp`, and the listener pointed back at the Kali machine on port 4444. Running the module sent the malicious request, the server executed the payload, and Metasploit received the incoming connection, establishing a Meterpreter session as `www-data`.
 
 ![Shellshock exploit establishing Meterpreter session](screenshots/exploit/sheellockexploit.PNG)
 *Shellshock exploit executed and Meterpreter reverse shell established as www-data*
 
 
-## Phase 6 — Privilege Escalation
+## Phase 6: Privilege Escalation
 
-Starting from `www-data`, the extent of access to the system was initially unknown. The immediate priority was to understand the current position — who the active user was, what other accounts existed, and what paths were available toward higher privileges.
+Starting from `www-data`, the extent of access to the system was initially unknown. The immediate priority was to understand the current position of who the active user was, what other accounts existed, and what paths were available toward higher privileges.
 
 The Meterpreter session was dropped to a raw system shell, and a pseudo-terminal was spawned using Python's `pty` module to create a proper interactive terminal. Reading `/etc/passwd` and listing `/home/` confirmed a user named `thor` on the system. An initial `ls -la /home/thor/` returned permission denied, so the filesystem was searched for any files owned by thor regardless of directory permissions using `find / -user thor 2>/dev/null`. This located an anomalous binary at `/usr/local/sbin/ls`, a file named `ls` that was not the standard system binary. Its contents revealed it was a custom script owned by Thor, which was noted for later investigation.
 
-### Stage 1 — www-data to thor
+### Stage 1: www-data to thor
 
-The standard post-exploitation step of checking the current user's sudo permissions was performed with `sudo -l`. This revealed that `www-data` was permitted to execute `/home/thor/hammer.sh` as the user `thor` with no password required — a NOPASSWD rule with no legitimate operational justification.
+The standard post-exploitation step of checking the current user's sudo permissions was performed with `sudo -l`. This revealed that `www-data` was permitted to execute `/home/thor/hammer.sh` as the user `thor` with no password required, a NOPASSWD rule with no legitimate operational justification.
 
 ![sudo -l revealing NOPASSWD rule for hammer.sh](screenshots/exploit/sudol.PNG)
 *sudo -l confirming www-data can run hammer.sh as thor with no password*
 
-Direct access to read `hammer.sh` was blocked by directory permissions, so it was executed first with `sudo -u thor /home/thor/./hammer.sh` to observe its behaviour. The script presented two interactive prompts — a "Secret Key" and a "Secret Message". The first prompt echoed the input back as a greeting. The second processed the input and then exited. The distinction between these two behaviours was significant: if both prompts simply echoed input, neither would be interesting. The fact that the second prompt *processed* the input before responding suggested it was passing the value into a shell command — a pattern consistent with an `eval` statement, which is a well-documented command injection attack surface.
+Direct access to read `hammer.sh` was blocked by directory permissions, so it was executed first with `sudo -u thor /home/thor/./hammer.sh` to observe its behaviour. The script presented two interactive prompts: a "Secret Key" and a "Secret Message". The first prompt echoed the input back as a greeting. The second processed the input and then exited. The distinction between these two behaviours was significant: if both prompts simply echoed input, neither would be interesting. The fact that the second prompt *processed* the input before responding suggested it was passing the value into a shell command, a pattern consistent with an `eval` statement, which is a well-documented command injection attack surface.
 
 On a second execution, a blank input was passed to the first prompt. The injection payload `bash -i` was supplied to the second. This spawned an interactive shell as `thor`.
 
-![bash -i injection escalating to thor](screenshots/exploit/hammer.bash-i.PNG)
+![bash -i injection escalating to thor](screenshots/exploit/hammer.PNG)
 *bash -i payload injected into hammer.sh*
 
-### Stage 2 — thor to root
+### Stage 2: thor to root
 
-`sudo -l` was run again as `thor`. This revealed unrestricted NOPASSWD access to both `/usr/bin/cat` and `service` as root. The `service` rule was the most significant — the GTFOBins `sudo service` technique allows a path traversal string to be passed as the service name argument. Supplying `../../bin/bash` causes the `service` binary to resolve the traversal and invoke `/bin/bash` with root privileges.
+`sudo -l` was run again as `thor`. This revealed unrestricted NOPASSWD access to both `/usr/bin/cat` and `service` as root. The `service` rule was the most significant. The GTFOBins `sudo service` technique allows a path traversal string to be passed as the service name argument. Supplying `../../bin/bash` causes the `service` binary to resolve the traversal and invoke `/bin/bash` with root privileges.
 
 ```bash
 sudo service ../../bin/bash
@@ -227,7 +227,7 @@ sudo service ../../bin/bash
 This produced a full root shell.
 
 ![Root shell obtained via GTFOBins](screenshots/exploit/privilage%20escaltiontoroot.PNG)
-*Root shell obtained — GTFOBins sudo service path traversal confirmed*
+*Root shell obtained GTFOBins sudo service path traversal confirmed*
 
 
 ## Phase 7: Post-Exploitation
@@ -247,7 +247,7 @@ The root home directory was listed, which revealed `proof.txt` and `root.txt`. T
 
 The `/etc/shadow` and `/etc/passwd` files were copied to `/tmp` and downloaded to the attacker machine via Meterpreter. These two files together provide the system user accounts and password hashes needed for offline cracking.
 
-Several cracking approaches were attempted. John the Ripper identified both hashes as SHA-512crypt with a cost factor of 5,000 iterations. A first attempt using `rockyou.txt` was aborted after running for hours without a result — SHA-512crypt's computational cost makes exhaustive dictionary attacks very slow without GPU acceleration. A second attempt with a custom targeted wordlist built from intelligence gathered during reconnaissance completed quickly but returned no matches.
+Several cracking approaches were attempted. John the Ripper identified both hashes as SHA-512crypt with a cost factor of 5,000 iterations. A first attempt using `rockyou.txt` was aborted after running for hours without a result. SHA-512crypt's computational cost makes exhaustive dictionary attacks very slow without GPU acceleration. A second attempt with a custom targeted wordlist built from intelligence gathered during reconnaissance completed quickly but returned no matches.
 
 CrackStation was tried next as an online rainbow table service, but it returned an unrecognised hash format for both entries. This was expected SHA-512crypt adds a unique random salt to each hash before hashing, which means the same password produces a different hash for every account. Rainbow tables work by precomputing hashes for known passwords, but a separate table would be required for every possible salt value, making the approach completely impractical against salted hashes.
 
@@ -276,7 +276,7 @@ The final phase involved removing evidence of the intrusion from both the target
 
 On Kali, the Metasploit workspace was dropped with `workspace -d default`, the downloaded credential files were removed, the SSH key pair was deleted, and the bash history was cleared. Each step was verified before moving to the next.
 
-One deliberate exception was made — the SSH backdoor and its associated key files were retained on the target and not removed at this stage, as they were needed for demonstration purposes in the assessment presentation.
+One deliberate exception was made to the SSH backdoor, and its associated key files were retained on the target and not removed at this stage, as they were needed for demonstration purposes in the assessment presentation.
 
 
 
@@ -313,13 +313,13 @@ One deliberate exception was made — the SSH backdoor and its associated key fi
 
 ## Recommendations
 
-**Patch Bash immediately.** The Shellshock vulnerability exists because Bash has never been updated on this Debian 10 system. Running `apt-get update && apt-get upgrade bash` removes the vulnerability. Beyond patching, if CGI scripts are not operationally required, the `/cgi-bin/` directory should be disabled entirely in the Apache configuration — removing the attack surface regardless of the Bash version.
+**Patch Bash immediately.** The Shellshock vulnerability exists because Bash has never been updated on this Debian 10 system. Running `apt-get update && apt-get upgrade bash` removes the vulnerability. Beyond patching, if CGI scripts are not operationally required, the `/cgi-bin/` directory should be disabled entirely in the Apache configuration, removing the attack surface regardless of the Bash version.
 
-**Audit and harden sudo rules.** Two NOPASSWD sudo rules formed the entire privilege escalation chain. Neither rule has a legitimate justification. The `/etc/sudoers` file should be reviewed and both entries removed. The principle of least privilege should govern any future sudo configuration — accounts should only have the specific access they genuinely need, nothing more.
+**Audit and harden sudo rules.** Two NOPASSWD sudo rules formed the entire privilege escalation chain. Neither rule has a legitimate justification. The `/etc/sudoers` file should be reviewed and both entries removed. The principle of least privilege should govern any future sudo configuration; accounts should only have the specific access they genuinely need, nothing more.
 
-**Remove eval from shell scripts.** The `hammer.sh` script passed user input directly into an `eval` statement without any validation or sanitisation. This is what made the command injection possible. The use of `eval` should be avoided entirely in shell scripts that accept user input — it is almost always an attack surface. Input should be validated against a strict allowlist before any processing occurs.
+**Remove eval from shell scripts.** The `hammer.sh` script passed user input directly into an `eval` statement without any validation or sanitisation. This is what made the command injection possible. The use of `eval` should be avoided entirely in shell scripts that accept user input, as it is almost always an attack surface. Input should be validated against a strict allowlist before any processing occurs.
 
-**Change pfSense default credentials and restrict access.** The webConfigurator was exposed on the WAN interface using the unchanged default credentials `admin / pfsense`. Default credentials should be changed immediately after installation. The webConfigurator should never be reachable from the WAN — access should be restricted to the LAN or a dedicated management interface only.
+**Change pfSense default credentials and restrict access.** The webConfigurator was exposed on the WAN interface using the unchanged default credentials `admin / pfsense`. Default credentials should be changed immediately after installation. The webConfigurator should never be reachable from the WAN;  access should be restricted to the LAN or a dedicated management interface only.
 
 **Implement centralised logging.** In Phase 8, all local logs were cleared within minutes, leaving no trace of the intrusion on the target system. This demonstrated that the target had no centralised log management. In a production environment, logs should be forwarded in real time to a remote SIEM. This ensures that even if an attacker clears logs locally, the evidence has already been preserved off-system and cannot be tampered with.
 
